@@ -1,0 +1,187 @@
+Context
+
+* Agenda
+- Introducción
+- Cancelación
+- Context
+- Uso correcto
+
+
+* Introducción
+Cada request es tratada por su propia goroutine.
+
+El código del handler necesita acceso a valores específicos al request.
+
+Cuando el request se completa o alcanza su timeout, su trabajo debe ser cancelado.
+
+* Cancelación
+Abandona trabajo cuando el cliente ya no ncecesita el resultado.
+
+- El usuario cierra la sesión, se cierra la conexión.
+- La operación alcanza su deadline.
+- 'Hedged requests'
+
+Cancelar trabajo que no se necesita ahorra recursos.
+
+* La cancelación como recomendación
+
+No panics.
+La cancelación le informa al código que su trabajo ya no es necesario.
+El código recibe la cancelación y decide que hacer: apagar, limpiar, regresar errores.
+
+* La cancelación es transitiva
+
+.image images/transitive.png
+
+* La cancelación afecta todas las APIs en el flujo del request
+
+Protocolos de red 
+
+Las APIs necesitan cancelación también
+
+- Clientes de bases de datos
+[[https://pkg.go.dev/github.com/go-redis/redis/v8#pkg-examples][redis]]
+[[https://golang.org/pkg/database/sql/][sql]]
+
+- Clientes de otros servicios
+
+*Objetivo*: Proveer una forma uniforme de cancelación
+
+* Context
+
+Un contexto guarda la señal de cancelación y todos los valores del request a todas las funciones en el flujo del request. 
+Es segura de usar de forma concurrente.
+
+La forma idiomática es pasar ctx como primer argumento
+
+    func Func(ctx context.Context, arg string) (string, error)
+
+* Context
+
+    type Context interface {
+        Done() <-chan struct{}                   // closed when this Context is canceled
+        Err() error                              // why this Context was canceled
+        Deadline() (deadline time.Time, ok bool) // when this Context will be canceled
+        Value(key interface{}) interface{}       // data associated with this Context
+    }
+
+* Los contextos tienen jerarquía
+
+Los contextos *no* tienen un método de cancelación por la misma razón que el channel Done es receive-only.
+La función que recibe la señal de cancelación no es aquella que la emite.
+
+    // WithCancel returns a copy of parent whose Done channel is closed as soon as
+    // parent.Done is closed or cancel is called.
+    func WithCancel(parent Context) (ctx Context, cancel CancelFunc)
+
+Ejemplo
+
+    // goroutine #1
+    ctx, cancel := context.WithCancel(parent)
+    ...
+    data, err := Func(ctx, name)
+
+    // goroutine #2
+    cancel()
+
+Los contextos forman un árbol, cada sub-árbol puede ser cancelado.
+
+* Contextos derivados
+
+    func WithCancel(parent Context) (ctx Context, cancel CancelFunc)
+    func WithDeadline(parent Context, d time.Time) (Context, CancelFunc)
+    func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc)
+
+Ejemplo
+
+    func slowOperationWithTimeout(ctx context.Context) (Result, error) {
+        ctx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
+        defer cancel()  // releases resources if slowOperation completes before timeout elapses
+        return slowOperation(ctx)
+    }
+
+* Valores dentro del contexto
+
+El contexto contine valores relacionados al request
+
+- Deadline
+- Señal de cancelación
+- Credenciales de seguridad
+- Request id
+- Trace ids distribuidos
+
+* Ejemplo
+
+Búsqueda replicada
+
+    // Search runs query on a backend and returns the result.
+    type Search func(query string) Result
+    type Result struct {
+        Hit string
+        Err error
+    }
+
+    // First runs query on replicas and returns the first result.
+    func First(query string, replicas ...Search) Result {
+        c := make(chan Result, len(replicas))
+        search := func(replica Search) { c <- replica(query) }
+        for _, replica := range replicas {
+            go search(replica)
+        }
+        return <-c
+    }
+
+Las búsquedas subsecuentes pueden continuar aún después de que la primera regresa.
+
+* Ejemplo con context
+
+Búsqueda cancelable
+
+    // Search runs query on a backend and returns the result.
+    type Search func(ctx context.Context, query string) Result
+
+    // First runs query on replicas and returns the first result.
+    func First(ctx context.Context, query string, replicas ...Search) Result {
+        c := make(chan Result, len(replicas))
+        ctx, cancel := context.WithCancel(ctx)
+        defer cancel()
+        search := func(replica Search) { c <- replica(ctx, query) }
+        for _, replica := range replicas {
+            go search(replica)
+        }
+        select {
+        case <-ctx.Done():
+            return Result{Err: ctx.Err()}
+        case r := <-c:
+            return r
+        }
+    }
+
+* Uso correcto
+
+* Tip #1: Usar el context de los requests que llegan
+
+.code tip1/main.go /START OMIT/,/END OMIT/
+
+* Tip #2: User el context en la llamada a APIs externas
+
+.play -edit tip2/main.go /START OMIT/,/END OMIT/
+
+* Tip #3: No guardes contexts dentro de un struct ( o una variable global).
+Pasa el contexto a cada función que lo necesite.
+
+* Tip #4: Reemplaza el contexto usando WithCancel, WithDeadline, WithTimeout, o WithValue.
+https://golang.org/pkg/context/#WithCancel
+
+* Tip #5: Usa los context values solo para información específica del request
+no para parámetros opcionales de las funciones.
+
+
+
+
+* More
+
+https://talks.golang.org/2014/gotham-context.slide#1
+https://blog.golang.org/context
+https://www.ardanlabs.com/blog/2019/09/context-package-semantics-in-go.html
+https://medium.com/@cep21/how-to-correctly-use-context-context-in-go-1-7-8f2c0fafdf39
