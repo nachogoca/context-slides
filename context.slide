@@ -1,6 +1,6 @@
 Context
 
-Jose Ignacio Gonzalez Cardenas
+José Ignacio González Cárdenas
 
 * Agenda
 - Introducción
@@ -14,10 +14,13 @@ Cada request es tratada por su propia goroutine.
 
 El código del handler necesita acceso a valores específicos al request.
 
+- Credenciales de seguridad
+- Deadline
+
 Cuando el request se completa o alcanza su timeout, su trabajo debe ser cancelado.
 
 * Cancelación
-Abandona trabajo cuando el cliente ya no ncecesita el resultado.
+Abandona trabajo cuando el cliente ya no necesita el resultado.
 
 - El usuario cierra la sesión, se cierra la conexión.
 - La operación alcanza su deadline.
@@ -67,28 +70,31 @@ La forma idiomática es pasar ctx como primer argumento
         Value(key interface{}) interface{}       // data associated with this Context
     }
 
-* Los contextos tienen jerarquía
+	func Background() Context
+	func TODO() Context
 
-Los contextos *no* tienen un método de cancelación por la misma razón que el channel Done es receive-only.
-La función que recibe la señal de cancelación no es aquella que la emite.
+	func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc)
+	func WithDeadline(parent Context, d time.Time) (Context, CancelFunc)
+	func WithCancel(parent Context) (ctx Context, cancel CancelFunc)
 
-    // WithCancel returns a copy of parent whose Done channel is closed as soon as
-    // parent.Done is closed or cancel is called.
-    func WithCancel(parent Context) (ctx Context, cancel CancelFunc)
 
-Ejemplo
+* Jerarquía (0)
 
-    // goroutine #1
-    ctx, cancel := context.WithCancel(parent)
-    ...
-    data, err := Func(ctx, name)
+.image images/hierarchy.png
 
-    // goroutine #2
-    cancel()
+* Jerarquía (1)
 
-Los contextos forman un árbol, cada sub-árbol puede ser cancelado.
+.image images/transitive.png
+
+* Jerarquía (2)
+
+.image images/hierarchy3.png
+
+
 
 * Contextos derivados
+
+Los contextos forman un árbol, cada sub-árbol puede ser cancelado.
 
     func WithCancel(parent Context) (ctx Context, cancel CancelFunc)
     func WithDeadline(parent Context, d time.Time) (Context, CancelFunc)
@@ -101,6 +107,15 @@ Ejemplo
         defer cancel()  // releases resources if slowOperation completes before timeout elapses
         return slowOperation(ctx)
     }
+
+* Método de cancelación
+
+Los contextos *no* tienen un método de cancelación por la misma razón que el channel Done es receive-only.
+La función que recibe la señal de cancelación no es aquella que la emite.
+
+    // WithCancel returns a copy of parent whose Done channel is closed as soon as
+    // parent.Done is closed or cancel is called.
+    func WithCancel(parent Context) (ctx Context, cancel CancelFunc)
 
 * Valores dentro del contexto
 
@@ -187,3 +202,4 @@ https://talks.golang.org/2014/gotham-context.slide#1
 https://blog.golang.org/context
 https://www.ardanlabs.com/blog/2019/09/context-package-semantics-in-go.html
 https://medium.com/@cep21/how-to-correctly-use-context-context-in-go-1-7-8f2c0fafdf39
+https://www.youtube.com/watch?v=LSzR0VEraWw
