@@ -196,7 +196,7 @@ https://golang.org/pkg/context/#WithCancel
 
 * Common gotcha
 
-Ciudado con al utilizar context con goroutines
+Ciudado con al utilizar context con goroutines. Puede generar cancelaciones no deseadas
 
 * Valores dentro del contexto
 
