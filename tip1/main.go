@@ -19,6 +19,9 @@ func main() {
 
 // START OMIT
 func handler(c echo.Context) error {
+
+	fmt.Println("started request")
+	defer fmt.Println("finished request")
 	err := operation(c.Request().Context())
 	if err != nil {
 		return c.String(http.StatusInternalServerError, err.Error())
@@ -29,7 +32,7 @@ func handler(c echo.Context) error {
 
 func operation(ctx context.Context) error {
 	select {
-	case <-time.After(10 * time.Second):
+	case <-time.After(5 * time.Second):
 		fmt.Println("Completed work")
 	case <-ctx.Done():
 		fmt.Println(ctx.Err())

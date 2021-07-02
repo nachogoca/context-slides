@@ -3,28 +3,33 @@ Context
 José Ignacio González Cárdenas
 
 * Agenda
-- Introducción
-- Cancelación
-- Context
+- Introducción al package context
+- Concepto de cancelación y propagación
 - Uso correcto
 
+.image images/context-meme.jpg
 
-* Introducción
-Cada request es tratada por su propia goroutine.
+* Introducción al package context
 
-El código del handler necesita acceso a valores específicos al request.
+[[https://golang.org/pkg/context/][pkg/context]]
 
-- Credenciales de seguridad
-- Deadline
+Agregado en Go 1.7
 
-Cuando el request se completa o alcanza su timeout, su trabajo debe ser cancelado.
+Objetivos
 
-* Cancelación
+- Cancelación
+- Propagación de valores
+
+* Concepto de cancelación y propagación (1)
+
+.image images/sandwich.jpg
+
+* Mejor uso de recursos
+
 Abandona trabajo cuando el cliente ya no necesita el resultado.
 
 - El usuario cierra la sesión, se cierra la conexión.
 - La operación alcanza su deadline.
-- 'Hedged requests'
 
 Cancelar trabajo que no se necesita ahorra recursos.
 
@@ -54,6 +59,8 @@ Las APIs necesitan cancelación también
 
 * Context
 
+[[https://golang.org/pkg/context/][pkg/context]]
+
 Un contexto guarda la señal de cancelación y todos los valores del request a todas las funciones en el flujo del request. 
 Es segura de usar de forma concurrente.
 
@@ -77,10 +84,13 @@ La forma idiomática es pasar ctx como primer argumento
 	func WithDeadline(parent Context, d time.Time) (Context, CancelFunc)
 	func WithCancel(parent Context) (ctx Context, cancel CancelFunc)
 
+* Ejemplo
+
+SleepAndTalk
 
 * Jerarquía (0)
 
-.image images/hierarchy.png
+.image images/hierarchy3.png
 
 * Jerarquía (1)
 
@@ -88,7 +98,7 @@ La forma idiomática es pasar ctx como primer argumento
 
 * Jerarquía (2)
 
-.image images/hierarchy3.png
+.image images/hierarchy.png
 
 
 
@@ -117,19 +127,13 @@ La función que recibe la señal de cancelación no es aquella que la emite.
     // parent.Done is closed or cancel is called.
     func WithCancel(parent Context) (ctx Context, cancel CancelFunc)
 
-* Valores dentro del contexto
-
-El contexto contine valores relacionados al request
-
-- Deadline
-- Señal de cancelación
-- Credenciales de seguridad
-- Request id
-- Trace ids distribuidos
+* Ejemplos
 
 * Ejemplo
 
-Búsqueda replicada
+SleepAndTalk deep dive
+
+* Búsqueda replicada
 
     // Search runs query on a backend and returns the result.
     type Search func(query string) Result
@@ -190,11 +194,21 @@ Pasa el contexto a cada función que lo necesite.
 * Tip #4: Reemplaza el contexto usando WithCancel, WithDeadline, WithTimeout, o WithValue.
 https://golang.org/pkg/context/#WithCancel
 
+* Valores dentro del contexto
+
+El contexto contine valores relacionados al request
+
+- Credenciales de seguridad
+- Request id
+- Trace ids distribuidos
+
+.image images/trace.png
+
+
 * Tip #5: Usa los context values solo para información específica del request
 no para parámetros opcionales de las funciones.
 
-
-
+información extra que no impacta la ejecución
 
 * More
 

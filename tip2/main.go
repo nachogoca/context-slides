@@ -18,11 +18,12 @@ func main() {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
 	defer cancel()
 
 	req = req.WithContext(ctx)
 
+	
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		log.Println("Error:", err)
