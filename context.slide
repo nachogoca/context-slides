@@ -194,6 +194,10 @@ Pasa el contexto a cada función que lo necesite.
 * Tip #4: Reemplaza el contexto usando WithCancel, WithDeadline, WithTimeout, o WithValue.
 https://golang.org/pkg/context/#WithCancel
 
+* Common gotcha
+
+Ciudado con al utilizar context con goroutines
+
 * Valores dentro del contexto
 
 El contexto contine valores relacionados al request

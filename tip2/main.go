@@ -12,7 +12,7 @@ import (
 func main() {
 
 	// START OMIT
-	req, err := http.NewRequest("GET", "https://www.google.com", nil)
+	req, err := http.NewRequest("GET", "https://jsonplaceholder.typicode.com/photos", nil)
 	if err != nil {
 		log.Println("Error:", err)
 		return
@@ -23,7 +23,6 @@ func main() {
 
 	req = req.WithContext(ctx)
 
-	
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		log.Println("Error:", err)
